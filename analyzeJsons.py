@@ -139,7 +139,8 @@ def write_analysis_to_file(file_results, total_results, output_file):
                         f"{f'{v1} - {edge} - {v2}:':<46} {results['triplet_counts'][(v1, edge, v2)]:>5} "
                         f"({percentage:5.2f}%); Streak Info:  "
                         f"Streak_Num: {len(streak):>3}  "
-                        f"Num_of_streaks>1: {non_one_streaks:>3}\n")
+                        f"Num_of_streaks>1: {non_one_streaks:>3}  "
+                        f"Avg: {avg:>7}\n")
 
         f.write("\nTotal Analysis:\n")
         total_frames = sum(total_results["edge_counts"].values())
@@ -180,12 +181,14 @@ def write_analysis_to_file(file_results, total_results, output_file):
                     f"{f'{v1} - {edge} - {v2}:':<46} {count:>5} "
                     f"({percentage:5.2f}%); Streak Info:  "
                     f"Streak_Num: {len(streak):>3}  "
-                    f"Num_of_streaks>1: {non_one_streaks:>3}\n")
+                    f"Num_of_streaks>1: {non_one_streaks:>3}  "
+                    f"Avg: {avg:>7}\n")
         
         f.write("\nTop 20 highest average streaks edge triplet combinations:\n")
         max_avg_streak_triplet_combs = sorted(total_results["triplet_comb_streaks"], key=lambda k: statistics.mean(total_results["triplet_comb_streaks"][k]), reverse=True)[:20]
         for edge_set in max_avg_streak_triplet_combs:
             streak = total_results['triplet_comb_streaks'][edge_set]
+            non_one_streaks = sum(1 for num in streak if num > 1)
             avg = round(sum(streak) / len(streak), 2)
             std_dev = round(statistics.stdev(streak), 2) if len(streak) > 1 else 0
             median = statistics.median(streak)
@@ -196,9 +199,9 @@ def write_analysis_to_file(file_results, total_results, output_file):
                 f.write(f"  {v1} - {edge} - {v2}\n")
             
             if std_dev > 0:
-                f.write(f"  Count: {total_results['triplet_comb_counts'][edge_set]}; Streak Info: Avg: {avg}\tStd_Dev: {std_dev}\tMedian: {median}\tMax: {max_value}\n")
+                f.write(f"  Count: {total_results['triplet_comb_counts'][edge_set]}; Streak Info: Streak_Num: {len(streak)}\tNum_of_streaks>1: {non_one_streaks}\tAvg: {avg}\tStd_Dev: {std_dev}\tMedian: {median}\tMax: {max_value}\n")
             else:
-                f.write(f"  Count: {total_results['triplet_comb_counts'][edge_set]}\n")
+                f.write(f"  Count: {total_results['triplet_comb_counts'][edge_set]}; Streak Info: Streak_Num: {len(streak)}\tNum_of_streaks>1: {non_one_streaks}\tAvg: {avg}\n")
 
 
 def main():
