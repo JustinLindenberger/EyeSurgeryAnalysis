@@ -42,7 +42,7 @@ def analyze_semantic_relations(directory):
                     triplet_counts[(v1, edge, v2)] += 1
                     triplet_set.add((v1, edge, v2))
                 
-                if triplet_set != set():
+                if triplet_set:
                     triplet_comb_counts[frozenset(triplet_set)] += 1
                     if triplet_set == previous_triplets:
                         comb_streak += 1
@@ -58,7 +58,7 @@ def analyze_semantic_relations(directory):
                         for triplet in previous_triplets - triplet_set:
                             triplet_streaks[triplet].append(current_streaks[triplet])
                             del current_streaks[triplet]
-                elif previous_triplets != set():
+                elif previous_triplets:
                     for triplet, streak in current_streaks.items():
                         triplet_streaks[triplet].append(streak)
                     current_streaks = collections.defaultdict(int)
@@ -113,35 +113,29 @@ def write_analysis_to_file(file_results, total_results, output_file):
                 percentage = (count / total_frames) * 100
                 f.write(f"  {edge}: {count} ({percentage:.2f}%)\n")
             
-            f.write("Top 10 highest average streak edge triplets:\n")
-            max_avg_streak_triplets = sorted(results["triplet_streaks"], key=lambda k: statistics.mean(results["triplet_streaks"][k]), reverse=True)[:10]
-            for (v1, edge, v2) in max_avg_streak_triplets:
-                streak = results['triplet_streaks'][(v1, edge, v2)]
-                non_one_streaks = sum(1 for num in streak if num > 1)
-                avg = round(sum(streak) / len(streak), 2)
-                std_dev = round(statistics.stdev(streak), 2) if len(streak) > 1 else 0
-                median = statistics.median(streak)
-                max_value = max(streak)
+            f.write("Top 10 highest average streak edge triplets (only streaks > 1 are considered):\n")
+            filtered_triplets = []
+            for triplet, streak in results["triplet_streaks"].items():
+                filtered = [x for x in streak if x > 1]
+                if filtered:
+                    filtered_triplets.append((triplet, filtered))
+            filtered_triplets = sorted(filtered_triplets, key=lambda t: statistics.mean(t[1]), reverse=True)[:10]
+            for (v1, edge, v2), filtered in filtered_triplets:
+                non_one_streaks = len(filtered)
+                avg_val = round(sum(filtered)/len(filtered), 2)
+                std_dev = round(statistics.stdev(filtered), 2) if len(filtered) > 1 else 0
+                median_val = statistics.median(filtered)
+                max_value = max(filtered)
                 percentage = (results["triplet_counts"][(v1, edge, v2)] / total_frames) * 100
-                
-                if std_dev > 0:
-                    f.write(
-                        f"{f'{v1} - {edge} - {v2}:':<46} {results['triplet_counts'][(v1, edge, v2)]:>5} "
-                        f"({percentage:5.2f}%); Streak Info:  "
-                        f"Streak_Num: {len(streak):>3}  "
-                        f"Num_of_streaks>1: {non_one_streaks:>3}  "
-                        f"Avg: {avg:>7}  "
-                        f"Std_Dev: {std_dev:>7}  "
-                        f"Median: {median:>7}  "
-                        f"Max: {max_value:>7}\n")
-                else:
-                    f.write(
-                        f"{f'{v1} - {edge} - {v2}:':<46} {results['triplet_counts'][(v1, edge, v2)]:>5} "
-                        f"({percentage:5.2f}%); Streak Info:  "
-                        f"Streak_Num: {len(streak):>3}  "
-                        f"Num_of_streaks>1: {non_one_streaks:>3}  "
-                        f"Avg: {avg:>7}\n")
-
+                f.write(
+                    f"{f'{v1} - {edge} - {v2}:':<46} {results['triplet_counts'][(v1, edge, v2)]:>5} "
+                    f"({percentage:5.2f}%); Streak Info:  "
+                    f"Streak_Num: {non_one_streaks:>3}  "
+                    f"Avg: {avg_val:>7}  "
+                    f"Std_Dev: {std_dev:>7}  "
+                    f"Median: {median_val:>7}  "
+                    f"Max: {max_value:>7}\n")
+        
         f.write("\nTotal Analysis:\n")
         total_frames = sum(total_results["edge_counts"].values())
         
@@ -155,58 +149,244 @@ def write_analysis_to_file(file_results, total_results, output_file):
             percentage = (count / total_frames) * 100
             f.write(f"  {edge}: {count} ({percentage:.2f}%)\n")
         
-        f.write("\nTotal triplet counts and streak statistics:\n")
+        f.write("\nTotal triplet counts and streak statistics (only streaks > 1 are considered):\n")
         sorted_triplets = sorted(total_results["triplet_counts"].items(), key=lambda x: x[1], reverse=True)
         for (v1, edge, v2), count in sorted_triplets:
             streak = total_results['triplet_streaks'][(v1, edge, v2)]
-            non_one_streaks = sum(1 for num in streak if num > 1)
-            avg = round(sum(streak) / len(streak), 2)
-            std_dev = round(statistics.stdev(streak), 2) if len(streak) > 1 else 0
-            median = statistics.median(streak)
-            max_value = max(streak)
-            percentage = (count / total_frames) * 100
-            
-            if std_dev > 0:
-                f.write(
-                    f"{f'{v1} - {edge} - {v2}:':<46} {count:>5} "
-                    f"({percentage:5.2f}%); Streak Info:  "
-                    f"Streak_Num: {len(streak):>3}  "
-                    f"Num_of_streaks>1: {non_one_streaks:>3}  "
-                    f"Avg: {avg:>7}  "
-                    f"Std_Dev: {std_dev:>7}  "
-                    f"Median: {median:>7}  "
-                    f"Max: {max_value:>7}\n")
+            filtered = [x for x in streak if x > 1]
+            if filtered:
+                non_one_streaks = len(filtered)
+                avg_val = round(sum(filtered)/len(filtered), 2)
+                std_dev = round(statistics.stdev(filtered), 2) if len(filtered) > 1 else 0
+                median_val = statistics.median(filtered)
+                max_value = max(filtered)
             else:
-                f.write(
-                    f"{f'{v1} - {edge} - {v2}:':<46} {count:>5} "
-                    f"({percentage:5.2f}%); Streak Info:  "
-                    f"Streak_Num: {len(streak):>3}  "
-                    f"Num_of_streaks>1: {non_one_streaks:>3}  "
-                    f"Avg: {avg:>7}\n")
+                non_one_streaks = 0
+                avg_val = 0
+                std_dev = 0
+                median_val = 0
+                max_value = 0
+            
+            f.write(
+                f"{f'{v1} - {edge} - {v2}:':<46} {count:>5} "
+                f"({percentage:5.2f}%); Streak Info:  "
+                f"Streak_Num: {non_one_streaks:>3}  "
+                f"Avg: {avg_val:>7}  "
+                f"Std_Dev: {std_dev:>7}  "
+                f"Median: {median_val:>7}  "
+                f"Max: {max_value:>7}\n")
         
-        f.write("\nTop 20 highest average streaks edge triplet combinations:\n")
-        max_avg_streak_triplet_combs = sorted(total_results["triplet_comb_streaks"], key=lambda k: statistics.mean(total_results["triplet_comb_streaks"][k]), reverse=True)[:20]
-        for edge_set in max_avg_streak_triplet_combs:
-            streak = total_results['triplet_comb_streaks'][edge_set]
-            non_one_streaks = sum(1 for num in streak if num > 1)
-            avg = round(sum(streak) / len(streak), 2)
-            std_dev = round(statistics.stdev(streak), 2) if len(streak) > 1 else 0
-            median = statistics.median(streak)
-            max_value = max(streak)
+        f.write("\nTop 20 highest average streaks edge triplet combinations (only streaks > 1 are considered):\n")
+        filtered_combs = []
+        for edge_set, streak in total_results["triplet_comb_streaks"].items():
+            filtered = [x for x in streak if x > 1]
+            if filtered:
+                filtered_combs.append((edge_set, filtered))
+        filtered_combs = sorted(filtered_combs, key=lambda t: statistics.mean(t[1]), reverse=True)[:20]
+        for edge_set, filtered in filtered_combs:
+            non_one_streaks = len(filtered)
+            avg_val = round(sum(filtered)/len(filtered), 2)
+            std_dev = round(statistics.stdev(filtered), 2) if len(filtered) > 1 else 0
+            median_val = statistics.median(filtered)
+            max_value = max(filtered)
             
             f.write("\n")
             for (v1, edge, v2) in edge_set:
                 f.write(f"  {v1} - {edge} - {v2}\n")
             
-            if std_dev > 0:
-                f.write(f"  Count: {total_results['triplet_comb_counts'][edge_set]}; Streak Info: Streak_Num: {len(streak)}\tNum_of_streaks>1: {non_one_streaks}\tAvg: {avg}\tStd_Dev: {std_dev}\tMedian: {median}\tMax: {max_value}\n")
-            else:
-                f.write(f"  Count: {total_results['triplet_comb_counts'][edge_set]}; Streak Info: Streak_Num: {len(streak)}\tNum_of_streaks>1: {non_one_streaks}\tAvg: {avg}\n")
+            f.write(f"  Count: {total_results['triplet_comb_counts'][edge_set]}; Streak Info: "
+                    f"Streak_Num: {len(filtered)}\tAvg: {avg_val}\tStd_Dev: {std_dev}\tMedian: {median_val}\tMax: {max_value}\n")
 
+def generate_file_plots(name, results, output_dir):
+    """
+    For a given file (non-total analysis) create a single image with:
+      - Top row: Bar chart (frames with x edges) and Pie chart (edge type distribution)
+      - Bottom row: A wide dot plot (with error bars, individual streak points, and annotations)
+        showing the top 10 highest average streak triplets (only using streaks > 1).
+    """
+    # Use a gridspec with a taller bottom row
+    fig = plt.figure(figsize=(16, 12))
+    gs = fig.add_gridspec(2, 2, height_ratios=[1, 2])
+    ax_bar = fig.add_subplot(gs[0, 0])
+    ax_pie = fig.add_subplot(gs[0, 1])
+    ax_dot = fig.add_subplot(gs[1, :])
+    
+    # Bar chart: frames with x edges
+    edge_counts = results["edge_counts"]
+    keys = sorted(edge_counts.keys())
+    counts = [edge_counts[k] for k in keys]
+    ax_bar.bar(keys, counts, color='skyblue')
+    ax_bar.set_title("Frames with x edges")
+    ax_bar.set_xlabel("Number of edges per frame")
+    ax_bar.set_ylabel("Frame count")
+    
+    # Pie chart: edge type distribution
+    edge_type_counts = results["edge_type_counts"]
+    labels = list(edge_type_counts.keys())
+    sizes = list(edge_type_counts.values())
+    ax_pie.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+    ax_pie.set_title("Edge Type Distribution")
+    
+    # Dot plot: top 10 highest average streak triplets (only streaks > 1)
+    triplet_streaks = results["triplet_streaks"]
+    valid_triplets = []
+    for triplet, streaks in triplet_streaks.items():
+        filtered = [x for x in streaks if x > 1]
+        if filtered:
+            valid_triplets.append((triplet, filtered))
+    if valid_triplets:
+        valid_triplets = sorted(valid_triplets, key=lambda x: statistics.mean(x[1]), reverse=True)[:10]
+        avg_streaks = [statistics.mean(s) for _, s in valid_triplets]
+        std_streaks = [statistics.stdev(s) if len(s) > 1 else 0 for _, s in valid_triplets]
+        triplet_labels = [f"{v1}\n{edge}\n{v2}" for (v1, edge, v2), _ in valid_triplets]
+        # Increase spacing by multiplying y positions
+        y_pos = np.arange(len(valid_triplets)) * 1.5
+        
+        ax_dot.errorbar(avg_streaks, y_pos, xerr=std_streaks, fmt='o', color='darkred',
+                        ecolor='black', capsize=5, zorder=3)
+        for i, (_, streaks) in enumerate(valid_triplets):
+            jitter = np.random.uniform(-0.1, 0.1, size=len(streaks))
+            y_jitter = y_pos[i] + jitter
+            ax_dot.scatter(streaks, y_jitter, color='blue', alpha=0.6, s=30, zorder=2)
+            median_val = statistics.median(streaks)
+            count_val = len(streaks)
+            x_max = max(max(streaks), avg_streaks[i] + std_streaks[i])
+            ax_dot.text(x_max + 0.5, y_pos[i], f"Median: {median_val} | N: {count_val}",
+                        va='center', fontsize=8, color='green')
+        ax_dot.set_yticks(y_pos)
+        ax_dot.set_yticklabels(triplet_labels)
+        ax_dot.set_xlabel("Streak Length")
+        ax_dot.set_title("Top 10 Highest Avg Streak Triplets (streaks > 1)")
+    else:
+        ax_dot.text(0.5, 0.5, "No triplet streak data", ha='center', va='center')
+        ax_dot.set_title("Top 10 Highest Avg Streak Triplets")
+    
+    plt.suptitle(f"Analysis Plots: {name}")
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    output_path = os.path.join(output_dir, f"{name}_plots.png")
+    plt.savefig(output_path)
+    plt.close(fig)
+
+def generate_total_bar_pie(results, output_dir):
+    """
+    For total analysis, generate a figure (Total_BarPie.png) showing the bar chart and pie chart.
+    """
+    fig, (ax_bar, ax_pie) = plt.subplots(1, 2, figsize=(16, 8))
+    
+    # Bar chart: frames with x edges
+    edge_counts = results["edge_counts"]
+    keys = sorted(edge_counts.keys())
+    counts = [edge_counts[k] for k in keys]
+    ax_bar.bar(keys, counts, color='skyblue')
+    ax_bar.set_title("Frames with x edges")
+    ax_bar.set_xlabel("Number of edges per frame")
+    ax_bar.set_ylabel("Frame count")
+    
+    # Pie chart: edge type distribution
+    edge_type_counts = results["edge_type_counts"]
+    labels = list(edge_type_counts.keys())
+    sizes = list(edge_type_counts.values())
+    ax_pie.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+    ax_pie.set_title("Edge Type Distribution")
+    
+    plt.suptitle("Total Analysis: Bar & Pie Charts")
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    output_path = os.path.join(output_dir, "Total_BarPie.png")
+    plt.savefig(output_path)
+    plt.close(fig)
+
+def generate_total_dot_all(results, output_dir):
+    """
+    For total analysis, generate a dot plot (Total_Dot_All.png) with error bars
+    for every edge triplet (only using streaks > 1).
+    """
+    triplet_streaks = results["triplet_streaks"]
+    valid_triplets = []
+    for triplet, streaks in triplet_streaks.items():
+        filtered = [x for x in streaks if x > 1]
+        if filtered:
+            valid_triplets.append((triplet, filtered))
+    if not valid_triplets:
+        return
+    # Sort by average streak descending
+    valid_triplets = sorted(valid_triplets, key=lambda x: statistics.mean(x[1]), reverse=True)
+    n = len(valid_triplets)
+    fig, ax = plt.subplots(figsize=(12, max(6, 0.75 * n)))
+    avg_streaks = [statistics.mean(s) for _, s in valid_triplets]
+    std_streaks = [statistics.stdev(s) if len(s) > 1 else 0 for _, s in valid_triplets]
+    triplet_labels = [f"{v1}\n{edge}\n{v2}" for (v1, edge, v2), _ in valid_triplets]
+    y_pos = np.arange(len(valid_triplets)) * 1.5
+    
+    ax.errorbar(avg_streaks, y_pos, xerr=std_streaks, fmt='o', color='darkred',
+                ecolor='black', capsize=5, zorder=3)
+    for i, (_, streaks) in enumerate(valid_triplets):
+        jitter = np.random.uniform(-0.1, 0.1, size=len(streaks))
+        y_jitter = y_pos[i] + jitter
+        ax.scatter(streaks, y_jitter, color='blue', alpha=0.6, s=30, zorder=2)
+        median_val = statistics.median(streaks)
+        count_val = len(streaks)
+        x_max = max(max(streaks), avg_streaks[i] + std_streaks[i])
+        ax.text(x_max + 0.5, y_pos[i], f"Median: {median_val} | N: {count_val}",
+                va='center', fontsize=8, color='green')
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(triplet_labels)
+    ax.set_xlabel("Streak Length")
+    ax.set_title("Dot Plot for Every Edge Triplet (streaks > 1)")
+    
+    plt.tight_layout()
+    output_path = os.path.join(output_dir, "Total_Dot_All.png")
+    plt.savefig(output_path)
+    plt.close(fig)
+
+def generate_total_dot_comb_top20(results, output_dir):
+    """
+    For total analysis, generate a dot plot (Total_Dot_CombTop20.png) with error bars
+    for the top 20 average streaks for combinations of edge triplets (only using streaks > 1).
+    """
+    comb_streaks = results["triplet_comb_streaks"]
+    valid_combs = []
+    for edge_set, streak in comb_streaks.items():
+        filtered = [x for x in streak if x > 1]
+        if filtered:
+            valid_combs.append((edge_set, filtered))
+    if not valid_combs:
+        return
+    valid_combs = sorted(valid_combs, key=lambda x: statistics.mean(x[1]), reverse=True)[:20]
+    n = len(valid_combs)
+    fig, ax = plt.subplots(figsize=(12, max(6, 0.75 * n)))
+    avg_streaks = [statistics.mean(s) for _, s in valid_combs]
+    std_streaks = [statistics.stdev(s) if len(s) > 1 else 0 for _, s in valid_combs]
+    comb_labels = []
+    for (edge_set, _) in valid_combs:
+        label = "\n".join([f"{v1}-{edge}-{v2}" for (v1, edge, v2) in edge_set])
+        comb_labels.append(label)
+    y_pos = np.arange(len(valid_combs)) * 1.5
+    
+    ax.errorbar(avg_streaks, y_pos, xerr=std_streaks, fmt='o', color='darkred',
+                ecolor='black', capsize=5, zorder=3)
+    for i, (_, streaks) in enumerate(valid_combs):
+        jitter = np.random.uniform(-0.1, 0.1, size=len(streaks))
+        y_jitter = y_pos[i] + jitter
+        ax.scatter(streaks, y_jitter, color='blue', alpha=0.6, s=30, zorder=2)
+        median_val = statistics.median(streaks)
+        count_val = len(streaks)
+        x_max = max(max(streaks), avg_streaks[i] + std_streaks[i])
+        ax.text(x_max + 0.5, y_pos[i], f"Median: {median_val} | N: {count_val}",
+                va='center', fontsize=8, color='green')
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(comb_labels)
+    ax.set_xlabel("Streak Length")
+    ax.set_title("Top 20 Highest Avg Streak Triplet Combinations (streaks > 1)")
+    
+    plt.tight_layout()
+    output_path = os.path.join(output_dir, "Total_Dot_CombTop20.png")
+    plt.savefig(output_path)
+    plt.close(fig)
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze semantic relations in JSON files.")
     parser.add_argument("directory", type=str, help="Path to the directory containing JSON files.")
+    parser.add_argument("--plots", action="store_true", help="Generate plots and save images.")
     args = parser.parse_args()
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -216,6 +396,15 @@ def main():
     
     file_results, total_results = analyze_semantic_relations(args.directory)
     write_analysis_to_file(file_results, total_results, output_file)
+    
+    if args.plots:
+        # Generate plots for each individual file
+        for filename, results in file_results.items():
+            generate_file_plots(filename, results, output_dir)
+        # Generate total analysis plots (three separate images)
+        generate_total_bar_pie(total_results, output_dir)
+        generate_total_dot_all(total_results, output_dir)
+        generate_total_dot_comb_top20(total_results, output_dir)
 
 if __name__ == "__main__":
     main()
